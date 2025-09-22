@@ -235,7 +235,7 @@ router.put('/profile', authenticateToken, [
     const client = await pool.connect();
     try {
       const result = await client.query(
-        `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramCount} RETURNING id, email, first_name, last_name`,
+        `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramCount + 1} RETURNING id, email, first_name, last_name`,
         updateValues
       );
 

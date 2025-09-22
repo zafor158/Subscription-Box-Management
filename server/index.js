@@ -49,7 +49,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
-app.use('/api/stripe-webhooks', webhookRoutes);
+app.use('/api', webhookRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

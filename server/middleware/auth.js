@@ -11,14 +11,15 @@ const authenticateToken = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const secret = process.env.JWT_SECRET || 'fallback-secret-key-for-development-only';
+    const decoded = jwt.verify(token, secret);
     
     // Get user from database
     const client = await pool.connect();
     try {
       const result = await client.query(
         'SELECT id, email, first_name, last_name, stripe_customer_id FROM users WHERE id = $1',
-        [decoded.userId]
+        [decoded.id]
       );
       
       if (result.rows.length === 0) {
@@ -44,9 +45,10 @@ const authenticateToken = async (req, res, next) => {
 
 // Generate JWT token
 const generateToken = (userId) => {
+  const secret = process.env.JWT_SECRET || 'fallback-secret-key-for-development-only';
   return jwt.sign(
-    { userId },
-    process.env.JWT_SECRET,
+    { id: userId },
+    secret,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 };
@@ -62,13 +64,14 @@ const optionalAuth = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const secret = process.env.JWT_SECRET || 'fallback-secret-key-for-development-only';
+    const decoded = jwt.verify(token, secret);
     
     const client = await pool.connect();
     try {
       const result = await client.query(
         'SELECT id, email, first_name, last_name, stripe_customer_id FROM users WHERE id = $1',
-        [decoded.userId]
+        [decoded.id]
       );
       
       req.user = result.rows.length > 0 ? result.rows[0] : null;
