@@ -50,8 +50,8 @@ Before running this application, make sure you have:
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd subscription-box-platform
+   git clone https://github.com/zafor158/Subscription-Box-Management-Platform.git
+   cd Subscription-Box-Management-Platform
    ```
 
 2. **Install dependencies**
