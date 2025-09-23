@@ -5,7 +5,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-const { connectDB } = require('./config/database');
+const { connectDB } = require('../server/config/database');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -43,7 +43,30 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes will be loaded after database initialization
+// Initialize database and load routes
+const initializeApp = async () => {
+  try {
+    // Initialize database first
+    await connectDB();
+    
+    // Load routes after database initialization
+    const authRoutes = require('../server/routes/auth');
+    const subscriptionRoutes = require('../server/routes/subscriptions');
+    const webhookRoutes = require('../server/routes/webhooks');
+    
+    // Setup API routes
+    app.use('/api/auth', authRoutes);
+    app.use('/api/subscriptions', subscriptionRoutes);
+    app.use('/api', webhookRoutes);
+    
+    console.log('✅ Routes loaded successfully');
+  } catch (error) {
+    console.error('Failed to initialize app:', error);
+  }
+};
+
+// Initialize the app
+initializeApp();
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -59,34 +82,5 @@ app.use('*', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-// Start server
-const startServer = async () => {
-  try {
-    // Initialize database first
-    await connectDB();
-    
-    // Load routes after database initialization
-    const authRoutes = require('./routes/auth');
-    const subscriptionRoutes = require('./routes/subscriptions');
-    const webhookRoutes = require('./routes/webhooks');
-    
-    // Setup API routes
-    app.use('/api/auth', authRoutes);
-    app.use('/api/subscriptions', subscriptionRoutes);
-    app.use('/api', webhookRoutes);
-    
-    console.log('✅ Routes loaded successfully');
-    
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-      console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-      console.log(`📦 Subscription plans: http://localhost:${PORT}/api/subscriptions/plans`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
-};
-
-startServer();
+// Export for Vercel
+module.exports = app;
