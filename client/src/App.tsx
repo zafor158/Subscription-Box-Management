@@ -45,7 +45,7 @@ const App: React.FC = () => {
         <div className="App">
           <Routes>
             {/* Public Routes */}
-            <Route path="/" element={<Layout><Home /></Layout>} />
+            <Route path="/" element={<Layout showFooter={true}><Home /></Layout>} />
             <Route path="/plans" element={<Layout><Plans /></Layout>} />
             
             {/* Auth Routes (redirect to dashboard if logged in) */}

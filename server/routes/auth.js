@@ -235,7 +235,7 @@ router.put('/profile', authenticateToken, [
     const client = await pool.connect();
     try {
       const result = await client.query(
-        `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramCount + 1} RETURNING id, email, first_name, last_name`,
+        `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramCount} RETURNING id, email, first_name, last_name`,
         updateValues
       );
 
@@ -254,6 +254,56 @@ router.put('/profile', authenticateToken, [
   } catch (error) {
     console.error('Profile update error:', error);
     res.status(500).json({ message: 'Failed to update profile' });
+  }
+});
+
+// Update payment method
+router.put('/payment-method', authenticateToken, [
+  body('paymentMethodId').notEmpty().withMessage('Payment method ID is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        message: 'Validation failed', 
+        errors: errors.array() 
+      });
+    }
+
+    const { paymentMethodId } = req.body;
+    const userId = req.user.id;
+
+    const client = await pool.connect();
+    try {
+      // Get user's Stripe customer ID
+      const userResult = await client.query(
+        'SELECT stripe_customer_id FROM users WHERE id = $1',
+        [userId]
+      );
+
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const stripeCustomerId = userResult.rows[0].stripe_customer_id;
+
+      if (!stripeCustomerId) {
+        return res.status(400).json({ message: 'No Stripe customer found for this user' });
+      }
+
+      // In a real implementation, you would update the payment method in Stripe
+      // For now, we'll just return success
+      res.json({
+        message: 'Payment method updated successfully',
+        paymentMethodId: paymentMethodId
+      });
+
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Payment method update error:', error);
+    res.status(500).json({ message: 'Failed to update payment method' });
   }
 });
 

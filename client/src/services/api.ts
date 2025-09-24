@@ -71,6 +71,11 @@ export const authAPI = {
     const response = await api.put('/auth/profile', userData);
     return response.data;
   },
+
+  updatePaymentMethod: async (paymentMethodId: string): Promise<{ message: string; paymentMethodId: string }> => {
+    const response = await api.put('/auth/payment-method', { paymentMethodId });
+    return response.data;
+  },
 };
 
 // Subscription API
@@ -88,7 +93,11 @@ export const subscriptionAPI = {
     return response.data;
   },
 
-  getCurrentSubscription: async (): Promise<{ subscription: Subscription }> => {
+  getCurrentSubscriptions: async (): Promise<{ 
+    subscriptions: Subscription[], 
+    totalSubscriptions: number, 
+    totalMonthlyCost: number 
+  }> => {
     const response = await api.get('/subscriptions/current');
     return response.data;
   },
@@ -105,6 +114,11 @@ export const subscriptionAPI = {
 
   getBoxHistory: async (): Promise<{ boxes: Box[] }> => {
     const response = await api.get('/subscriptions/boxes');
+    return response.data;
+  },
+
+  addSampleBox: async (): Promise<{ message: string; box: Box }> => {
+    const response = await api.post('/subscriptions/add-sample-box');
     return response.data;
   },
 };

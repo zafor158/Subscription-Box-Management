@@ -58,14 +58,14 @@ router.post('/create', authenticateToken, [
 
     const client = await pool.connect();
     try {
-      // Check if user already has an active subscription
+      // Check if user already has an active subscription to the same plan
       const existingSubscription = await client.query(
-        'SELECT id FROM subscriptions WHERE user_id = $1 AND status = $2',
-        [userId, 'active']
+        'SELECT id FROM subscriptions WHERE user_id = $1 AND plan_id = $2 AND status = $3',
+        [userId, planId, 'active']
       );
 
       if (existingSubscription.rows.length > 0) {
-        return res.status(400).json({ message: 'User already has an active subscription' });
+        return res.status(400).json({ message: 'User already has an active subscription to this plan' });
       }
 
       // Get plan details
@@ -121,7 +121,7 @@ router.post('/create', authenticateToken, [
   }
 });
 
-// Get user's current subscription
+// Get user's current subscriptions
 router.get('/current', authenticateToken, async (req, res) => {
   try {
     const client = await pool.connect();
@@ -134,29 +134,30 @@ router.get('/current', authenticateToken, async (req, res) => {
         JOIN subscription_plans sp ON s.plan_id = sp.id
         WHERE s.user_id = $1 AND s.status = 'active'
         ORDER BY s.created_at DESC
-        LIMIT 1
       `, [req.user.id]);
 
       if (result.rows.length === 0) {
-        return res.status(404).json({ message: 'No active subscription found' });
+        return res.status(404).json({ message: 'No active subscriptions found' });
       }
 
-      const subscription = result.rows[0];
+      const subscriptions = result.rows.map(subscription => ({
+        id: subscription.id,
+        status: subscription.status,
+        currentPeriodStart: subscription.current_period_start,
+        currentPeriodEnd: subscription.current_period_end,
+        cancelAtPeriodEnd: subscription.cancel_at_period_end,
+        plan: {
+          name: subscription.plan_name,
+          description: subscription.plan_description,
+          priceMonthly: parseFloat(subscription.price_monthly),
+          features: subscription.features
+        }
+      }));
 
       res.json({
-        subscription: {
-          id: subscription.id,
-          status: subscription.status,
-          currentPeriodStart: subscription.current_period_start,
-          currentPeriodEnd: subscription.current_period_end,
-          cancelAtPeriodEnd: subscription.cancel_at_period_end,
-          plan: {
-            name: subscription.plan_name,
-            description: subscription.plan_description,
-            priceMonthly: parseFloat(subscription.price_monthly),
-            features: subscription.features
-          }
-        }
+        subscriptions: subscriptions,
+        totalSubscriptions: subscriptions.length,
+        totalMonthlyCost: subscriptions.reduce((sum, sub) => sum + sub.plan.priceMonthly, 0)
       });
     } finally {
       client.release();
@@ -298,6 +299,69 @@ router.get('/boxes', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching box history:', error);
     res.status(500).json({ message: 'Failed to fetch box history' });
+  }
+});
+
+// Add sample box history (for testing purposes)
+router.post('/add-sample-box', authenticateToken, async (req, res) => {
+  try {
+    const client = await pool.connect();
+    try {
+      // Get user's current subscription
+      const subscriptionResult = await client.query(`
+        SELECT s.id as subscription_id, sp.name as plan_name
+        FROM subscriptions s
+        JOIN subscription_plans sp ON s.plan_id = sp.id
+        WHERE s.user_id = $1 AND s.status = 'active'
+        ORDER BY s.created_at DESC
+        LIMIT 1
+      `, [req.user.id]);
+
+      if (subscriptionResult.rows.length === 0) {
+        return res.status(400).json({ message: 'No active subscription found' });
+      }
+
+      const subscription = subscriptionResult.rows[0];
+      
+      // Create sample box history entry
+      const sampleItems = [
+        "Premium Coffee Beans",
+        "Artisan Chocolate Bar",
+        "Handcrafted Candle",
+        "Organic Tea Selection"
+      ];
+
+      const result = await client.query(`
+        INSERT INTO box_history (user_id, subscription_id, box_date, items, tracking_number, status)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id, box_date, items, tracking_number, status
+      `, [
+        req.user.id,
+        subscription.subscription_id,
+        new Date(),
+        JSON.stringify(sampleItems),
+        `TRK${Date.now()}`,
+        'delivered'
+      ]);
+
+      res.json({
+        message: 'Sample box added successfully',
+        box: {
+          id: result.rows[0].id,
+          boxDate: result.rows[0].box_date,
+          items: JSON.parse(result.rows[0].items),
+          trackingNumber: result.rows[0].tracking_number,
+          status: result.rows[0].status,
+          planName: subscription.plan_name
+        }
+      });
+
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error adding sample box:', error);
+    res.status(500).json({ message: 'Failed to add sample box' });
   }
 });
 
